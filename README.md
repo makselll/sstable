@@ -1,4 +1,4 @@
 TODO
-1. Remove byte seq from the map.idx 
-2. Add LSM
-3. Compress data.sst
+1. Add LSM
+2. Compress data.sst
+3. No sort in idx!!
