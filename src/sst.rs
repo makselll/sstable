@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::fs::{File, OpenOptions};
 use std::io::{Error, Seek, SeekFrom, Read, Write, ErrorKind};
 use std::path::{Path, PathBuf};
