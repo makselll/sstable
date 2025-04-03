@@ -9,7 +9,6 @@ mod sst;
 struct IDX {
     path: PathBuf,
     sst: sst::SST,
-    key_max_len: usize,
 }
 
 
@@ -28,51 +27,51 @@ struct IDXValue {
 }
 
 impl IDX {
+    const KEY_LEN: usize = 1;
+    
     fn new(path: &Path) -> IDX {
         let sst = sst::SST::new(Path::new("data.sst"));
-        IDX{path: path.to_path_buf(), sst, key_max_len: 255}
+        IDX{path: path.to_path_buf(), sst}
+    }
+    
+    fn get_key_size_from_byte_file(&self, file: &mut File) -> Result<u8, Error> {
+        /* Extract key size */
+        let mut key_len_buf = [0u8; IDX::KEY_LEN];
+        file.read_exact(&mut key_len_buf)?;
+        Ok(u8::from_le_bytes(key_len_buf))
     }
 
-    fn get_bin_key(&self, file: &mut File) -> Result<String, Error> {
-        let mut key_len_buf = [0u8; 4];
-        file.read_exact(&mut key_len_buf)?;
-        let key_size = u32::from_le_bytes(key_len_buf) as usize;
-
+    fn get_key_from_byte_file(&self, file: &mut File, key_size: usize) -> Result<String, Error> {
+        /* Extract key */
         let mut key_buf = vec![0u8; key_size];
         file.read_exact(&mut key_buf)?;
         Ok(String::from_utf8_lossy(&key_buf).to_string())
     }
     
     fn find_mid(&self, file: &mut File, mut mid: u64) -> Result<u64, Error> {
+        /* Fine start of the struct for bin search */
         while mid > 0 {
             file.seek(SeekFrom::Start(mid))?;
 
-            // Читаем длину ключа
-            let mut key_len_buf = [0u8; 4];
-            file.read_exact(&mut key_len_buf)?;
-            let key_len = u32::from_le_bytes(key_len_buf);
+            // Read key len
+            let key_size = self.get_key_size_from_byte_file(file)?;
             
-            // 
-            if key_len >= 1 && key_len <= 11 {
-                let mut key_buf = vec![0u8; key_len as usize];
-                match file.read_exact(&mut key_buf) {
-                    Ok(_) => {}
+            // The key should be less than 256 and more than 0
+            if key_size >= 1 && key_size <= u8::MAX {
+                let key = match self.get_key_from_byte_file(file, key_size as usize) {
+                    Ok(key) => {key}
                     Err(_) => {mid -= 1; continue }
                 };
-
-                let key = String::from_utf8_lossy(&key_buf);
-
+                
                 if key.chars().all(|x| x.is_alphabetic()) {
                     return Ok(mid);
                 }
 
             }
-
             mid -= 1;
-
         }
 
-        Ok(0) // Если не нашли
+        Ok(0)
     }
 
     fn get_file(&self) -> Result<File, Error> {
@@ -82,6 +81,7 @@ impl IDX {
     }
 
     fn find_offset(&self, key: &str) ->  Result<Option<u64>, Error> {
+        /* Find what offset we should get to find a key in sst */
         let mut file = self.get_file()?;
         
         let mut left = 0;
@@ -93,7 +93,8 @@ impl IDX {
             
             file.seek(SeekFrom::Start(mid))?;
 
-            let found_string = match self.get_bin_key(&mut file) {
+            let key_size = self.get_key_size_from_byte_file(&mut file)?;
+            let found_string = match self.get_key_from_byte_file(&mut file, key_size as usize) {
                 Ok(found_string) => found_string,
                 Err(_) => return Ok(None)
             };
@@ -130,7 +131,7 @@ impl IDX {
         let mut file = self.get_file()?;
         file.seek(SeekFrom::End(0))?;
     
-        file.write_all(&(key.len() as u32).to_le_bytes())?;
+        file.write_all(&(key.len() as u8).to_le_bytes())?;
         file.write_all(key.as_bytes())?;
         file.write_all(&offset.to_le_bytes())?;
 
@@ -162,7 +163,7 @@ fn main() {
     let idx = IDX::new(&Path::new("map.idx"));
 
     
-    if args[2].len() > idx.key_max_len || !args[2].chars().all(|x| x.is_alphabetic()) {
+    if args[2].len() as u8 > u8::MAX || !args[2].chars().all(|x| x.is_alphabetic()) {
         panic!("Key must be alphabetic and less then 11 chars");
     }
 
