@@ -3,7 +3,7 @@ use std::env;
 
 mod sst;
 mod idx;
-
+mod avl;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
