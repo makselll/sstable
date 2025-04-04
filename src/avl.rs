@@ -137,8 +137,6 @@ impl AVLTree {
     }
 
     fn right_rotate(mut node: Box<AVLNode>) -> Box<AVLNode> {
-        println!("Rotate right on node {}", node.key);
-
         let mut new_main_node = node.left.take().unwrap();
 
         node.left = new_main_node.right.take();
@@ -151,8 +149,6 @@ impl AVLTree {
     }
 
     fn left_rotate(mut node: Box<AVLNode>) -> Box<AVLNode> {
-        println!("Rotate left on node {}", node.key);
-
         let mut new_main_node = node.right.take().unwrap();
 
         node.right = new_main_node.left.take();

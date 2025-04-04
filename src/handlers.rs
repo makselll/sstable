@@ -1,8 +1,11 @@
-use crate::avl::AVLTreeSingleton;
-use rocket::State;
-use rocket::http::Status;
-use rocket::serde::json::Json;
+use std::sync::Arc;
+use axum::{
+    extract::State,
+    http::StatusCode,
+    Json,
+};
 use serde::{Deserialize, Serialize};
+use crate::avl::AVLTreeSingleton;
 
 #[derive(Serialize)]
 pub struct Message {
@@ -16,18 +19,17 @@ pub struct SetRequest {
     value: String,
 }
 
-#[post("/set", format = "application/json", data = "<request>")]
-pub fn set(
-    request: Json<SetRequest>,
-    tree_singleton: &State<AVLTreeSingleton>,
-) -> Result<Json<Message>, Status> {
+pub async fn set(
+    State(tree_singleton): State<Arc<AVLTreeSingleton>>,
+    Json(request): Json<SetRequest>,
+) -> Result<Json<Message>, StatusCode> {
+    
     let tree = tree_singleton.get_instance();
-    let mut tree = tree.write().map_err(|_| Status::InternalServerError)?;
-
+    let mut tree = tree.write().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     tree.set(&request.key, &request.value);
-
+    
     Ok(Json(Message {
-        value: Some(request.value.clone()),
+        value: Some(request.value),
         error: None,
     }))
 }
@@ -37,19 +39,19 @@ pub struct GetRequest {
     key: String,
 }
 
-#[post("/get", format = "application/json", data = "<request>")]
-pub fn get(
-    request: Json<GetRequest>,
-    tree_singleton: &State<AVLTreeSingleton>,
-) -> Result<Json<Message>, Status> {
+pub async fn get(
+    State(tree_singleton): State<Arc<AVLTreeSingleton>>,
+    Json(request): Json<GetRequest>,
+) -> Result<Json<Message>, StatusCode> {
     let tree = tree_singleton.get_instance();
-    let tree = tree.read().map_err(|_| Status::InternalServerError)?;
+    let tree = tree.write().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let result = tree.get(&request.key).map(|node| node.value.clone());
 
-    let result = tree.get(&request.key);
+    let error = result.is_none().then(|| "Key not found".to_string());
 
     Ok(Json(Message {
-        value: result.map(|node| node.value.clone()),
-        error: result.map_or_else(|| Some("Key not found".to_string()), |_| None),
+        value: result,
+        error,
     }))
 }
 
@@ -58,13 +60,12 @@ pub struct DeleteRequest {
     key: String,
 }
 
-#[delete("/delete", format = "application/json", data = "<request>")]
-pub fn delete(
-    request: Json<DeleteRequest>,
-    tree_singleton: &State<AVLTreeSingleton>,
-) -> Result<Json<Message>, Status> {
+pub async fn delete(
+    State(tree_singleton): State<Arc<AVLTreeSingleton>>,
+    Json(request): Json<DeleteRequest>,
+) -> Result<Json<Message>, StatusCode> {
     let tree = tree_singleton.get_instance();
-    let mut tree = tree.write().map_err(|_| Status::InternalServerError)?;
+    let mut tree = tree.write().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     tree.unset(&request.key);
 
