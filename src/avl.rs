@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-
+use std::sync::RwLock;
 
 #[derive(Debug)]
 pub struct AVLNode {
@@ -196,5 +196,21 @@ impl AVLTree {
         }
 
         node
+    }
+}
+
+pub struct AVLTreeSingleton {
+    instance: RwLock<AVLTree>,
+}
+
+impl AVLTreeSingleton {
+    pub fn new() -> AVLTreeSingleton {
+        AVLTreeSingleton { 
+            instance: RwLock::new(AVLTree::new()),
+        }
+    }
+    
+    pub fn get_instance(&self) -> &RwLock<AVLTree> {
+        &self.instance
     }
 }
