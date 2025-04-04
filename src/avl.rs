@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::io::Error;
+
 
 #[derive(Debug)]
 pub struct AVLNode {
@@ -57,9 +57,8 @@ impl AVLTree {
         None
     }
 
-    pub fn unset(&mut self, key: &str) -> Result<(), Error> {
+    pub fn unset(&mut self, key: &str) {
         self.root = Self::remove(self.root.take(), key);
-        Ok(())
     }
 
     fn get_largest_node(node: &mut Option<Box<AVLNode>>) -> Option<Box<AVLNode>> {
@@ -85,11 +84,11 @@ impl AVLTree {
                     }
                     Ordering::Equal => {
                         if n.right.is_none() {
-                            return n.left
+                            return n.left;
                         } else if n.left.is_none() {
-                            return n.right
+                            return n.right;
                         }
-                        
+
                         let mut largest_left_node = Self::get_largest_node(&mut n.left).unwrap();
                         largest_left_node.left = n.left.take();
                         largest_left_node.right = n.right.take();
@@ -102,9 +101,8 @@ impl AVLTree {
         }
     }
 
-    pub fn set(&mut self, key: &str, value: &str) -> Result<(), Error> {
+    pub fn set(&mut self, key: &str, value: &str) {
         self.root = Self::insert(self.root.take(), key, value);
-        Ok(())
     }
 
     fn insert(node: Option<Box<AVLNode>>, key: &str, value: &str) -> Option<Box<AVLNode>> {
@@ -129,19 +127,13 @@ impl AVLTree {
     }
 
     fn get_height(node: Option<&Box<AVLNode>>) -> i32 {
-        if let Some(n) = node {
-            return n.height;
-        } else {
-            0
-        }
+        node.map_or(0, |n| n.height)
     }
 
     fn get_balance(node: Option<&Box<AVLNode>>) -> i32 {
-        if let Some(n) = node {
-            return Self::get_height(n.left.as_ref()) - Self::get_height(n.right.as_ref());
-        } else {
-            0
-        }
+        node.map_or(0, |n| {
+            Self::get_height(n.left.as_ref()) - Self::get_height(n.right.as_ref())
+        })
     }
 
     fn right_rotate(mut node: Box<AVLNode>) -> Box<AVLNode> {
@@ -150,12 +142,11 @@ impl AVLTree {
         let mut new_main_node = node.left.take().unwrap();
 
         node.left = new_main_node.right.take();
-        node.height =
-            1 + Self::get_height(node.left.as_ref()).max(Self::get_height(node.right.as_ref()));
+        Self::update_height(&mut node);
 
         new_main_node.right = Some(node);
-        new_main_node.height = 1 + Self::get_height(new_main_node.left.as_ref())
-            .max(Self::get_height(new_main_node.right.as_ref()));
+        Self::update_height(&mut new_main_node);
+
         new_main_node
     }
 
@@ -165,20 +156,22 @@ impl AVLTree {
         let mut new_main_node = node.right.take().unwrap();
 
         node.right = new_main_node.left.take();
-        node.height =
-            1 + Self::get_height(node.right.as_ref()).max(Self::get_height(node.right.as_ref()));
+        Self::update_height(&mut node);
 
         new_main_node.left = Some(node);
-        new_main_node.height = 1 + Self::get_height(new_main_node.left.as_ref())
-            .max(Self::get_height(new_main_node.right.as_ref()));
+        Self::update_height(&mut new_main_node);
+
         new_main_node
     }
 
-    fn balance(mut node: Box<AVLNode>) -> Box<AVLNode> {
+    fn update_height(node: &mut Box<AVLNode>) {
         node.height =
             1 + Self::get_height(node.left.as_ref()).max(Self::get_height(node.right.as_ref()));
+    }
+
+    fn balance(mut node: Box<AVLNode>) -> Box<AVLNode> {
+        Self::update_height(&mut node);
         let balance = Self::get_balance(Some(&node));
-        dbg!(&node);
 
         // Left Left
         if balance > 1 && Self::get_balance(node.left.as_ref()) >= 0 {

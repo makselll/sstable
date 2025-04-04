@@ -9,14 +9,14 @@ fn valid_tree() {
     let fifth_pair = ("qwert", "fifth");
 
     let mut tree = AVLTree::new();
-    tree.set(first_pair.0, first_pair.1).unwrap();
+    tree.set(first_pair.0, first_pair.1);
     let root = tree.root.as_ref().unwrap();
     assert_eq!(root.key, first_pair.0);
     assert_eq!(root.value, first_pair.1);
     assert_eq!(root.height, 1);
 
     // Value should be inserted to the left
-    tree.set(second_pair.0, second_pair.1).unwrap();
+    tree.set(second_pair.0, second_pair.1);
     let root = tree.root.as_ref().unwrap();
     let root_left = root.left.as_ref().unwrap();
     assert_eq!(root_left.key, second_pair.0);
@@ -24,7 +24,7 @@ fn valid_tree() {
     assert_eq!(root.height, 2);
 
     // Value should be inserted to the right
-    tree.set(third_pair.0, third_pair.1).unwrap();
+    tree.set(third_pair.0, third_pair.1);
     let root = tree.root.as_ref().unwrap();
     let root_right = root.right.as_ref().unwrap();
     assert_eq!(root_right.key, third_pair.0);
@@ -32,8 +32,8 @@ fn valid_tree() {
     assert_eq!(root.height, 2);
 
     // ReBalance...
-    tree.set(fourth_pair.0, fourth_pair.1).unwrap();
-    tree.set(fifth_pair.0, fifth_pair.1).unwrap();
+    tree.set(fourth_pair.0, fourth_pair.1);
+    tree.set(fifth_pair.0, fifth_pair.1);
     let root = tree.root.as_ref().unwrap();
     assert_eq!(root.key, first_pair.0);
     assert_eq!(root.height, 3);
@@ -61,7 +61,7 @@ fn valid_tree() {
     assert_eq!(tree.get(fifth_pair.0).unwrap().value, fifth_pair.1);
     
     // Unset with left and right node
-    tree.unset(fourth_pair.0).unwrap();
+    tree.unset(fourth_pair.0);
     let root = tree.root.as_ref().unwrap();
     assert_eq!(root.key, first_pair.0);
     assert_eq!(root.height, 3);
@@ -78,7 +78,7 @@ fn valid_tree() {
     assert_eq!(root_right_right.height, 1);
 
     // Unset with right node
-    tree.unset(third_pair.0).unwrap();
+    tree.unset(third_pair.0);
     let root = tree.root.as_ref().unwrap();
     assert_eq!(root.key, first_pair.0);
     assert_eq!(root.height, 2);
@@ -91,7 +91,7 @@ fn valid_tree() {
     assert_eq!(root_right.height, 1);
     
     // Unset with left node
-    tree.unset(second_pair.0).unwrap();
+    tree.unset(second_pair.0);
     let root = tree.root.as_ref().unwrap();
     assert_eq!(root.key, first_pair.0);
     assert_eq!(root.height, 2);
