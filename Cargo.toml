@@ -1,7 +1,15 @@
 [package]
-name = "rust"
+name = "avl_tree"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+[[bench]]
+name = "avl_bench"
+harness = false
+
+[dev-dependencies]
+criterion = "0.5"
+rand = "0.8"
 
 [dependencies]
 axum = { version = "0.7.4", features = ["json"] }
