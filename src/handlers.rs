@@ -6,6 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use crate::avl::AVLTreeSingleton;
+use crate::idx::IDX;
 
 #[derive(Serialize)]
 pub struct Message {
@@ -45,7 +46,14 @@ pub async fn get(
 ) -> Result<Json<Message>, StatusCode> {
     let tree = tree_singleton.get_instance();
     let tree = tree.write().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let result = tree.get(&request.key).map(|node| node.value.clone());
+    let mut result = tree.get(&request.key).map(|node| node.value.clone());
+    
+    if result.is_none() {
+
+        if let Some(index_value) = IDX::search_key_in_all_files(&request.key) {
+            result = Some(index_value.value);
+        }
+    }
 
     let error = result.is_none().then(|| "Key not found".to_string());
 

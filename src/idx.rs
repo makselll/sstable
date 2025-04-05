@@ -23,11 +23,60 @@ pub struct IDXKey {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct IDXValue {
-    value: String,
+    pub value: String,
 }
 
 impl IDX {
     pub const KEY_LEN: usize = 1;
+
+    fn get_timestamp_from_filename(path: &Path) -> u64 {
+        path.file_stem()
+            .and_then(|stem| stem.to_str())
+            .and_then(|name| name.parse::<u64>().ok())
+            .unwrap_or(0)  // Если не удается извлечь timestamp, возвращаем 0
+    }
+
+    pub fn search_key_in_all_files(key: &str) -> Option<IDXValue> {
+        let mut idx_files = std::fs::read_dir(".")
+            .unwrap()
+            // Фильтруем все, что не удалось прочитать
+            .filter_map(|res| res.ok())
+            // Преобразуем элементы в пути
+            .map(|dir_entry| dir_entry.path())
+            // Оставляем только файлы с расширением .idx
+            .filter_map(|path| {
+                if path.extension().map_or(false, |ext| ext == "idx") {
+                    Some(path)
+                } else {
+                    None
+                }
+            })
+            // Преобразуем в вектор для сортировки
+            .collect::<Vec<_>>();
+
+        // Сортируем файлы по времени, извлекая unix timestamp из имени файла
+        idx_files.sort_by(|a, b| {
+            let a_timestamp = Self::get_timestamp_from_filename(a);
+            let b_timestamp = Self::get_timestamp_from_filename(b);
+            b_timestamp.cmp(&a_timestamp)  // Чтобы сортировать от самого нового
+        });
+
+
+        let mut value : Option<IDXValue> = None;
+
+        for file in idx_files {
+            let idx = Self::from(file).unwrap();
+            value = match idx.get_value(&key) {
+                Ok(value) => {
+                    dbg!(&value);
+                    Some(value)
+                },
+                Err(_) => continue,
+            };
+        }
+
+        value
+    }
 
     pub fn new() -> IDX {
         let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
@@ -38,27 +87,37 @@ impl IDX {
         let sst = sst::SST::new(Path::new(&sst_path).to_path_buf());
         IDX{path: Path::new(&idx_path).to_path_buf(), sst}
     }
+
+    pub fn from(idx_file: PathBuf) -> Result<IDX, Error> {
+        let file_name = idx_file.file_stem();
+        if file_name.is_none() {
+            return Err(Error::new(ErrorKind::Other, "No Filename"));
+        }
+
+        let sst_file = Path::new(&format!("{}.sst", file_name.unwrap().to_str().unwrap())).to_path_buf();
+        let sst = sst::SST::new(sst_file);
+        Ok(IDX{path: idx_file, sst})
+    }
     
     pub fn fill_from_avl(&self, tree: &AVLTree) -> Result<(), Error> {
         self.insert_avl_node(tree.root.as_ref().unwrap())?;
         Ok(())
     }
-    
+
     fn insert_avl_node(&self, node: &AVLNode) -> Result<(), Error> {
-        self.set_key(node.key.as_str(), node.value.as_str())?;
-        
         if let Some(left) = &node.left {
             self.insert_avl_node(left)?;
         }
-    
+
+        self.set_key(node.key.as_str(), node.value.as_str())?;
+        dbg!(node.key.as_str());
+
         if let Some(right) = &node.right {
             self.insert_avl_node(right)?;
         }
-        
+
         Ok(())
     }
-
-
 
     fn get_key_size_from_byte_file(&self, file: &mut File) -> Result<u8, Error> {
         /* Extract key size */
@@ -89,7 +148,7 @@ impl IDX {
                     Err(_) => {mid -= 1; continue }
                 };
 
-                if key.chars().all(|x| x.is_alphabetic()) {
+                if key.chars().all(|x| x.is_alphanumeric()) {
                     return Ok(mid);
                 }
 
@@ -143,6 +202,10 @@ impl IDX {
     }
 
     pub fn get_value(&self, key: &str) -> Result<IDXValue, Error> {
+        if key.chars().all(|x| x.is_alphanumeric()) {
+            return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
+        }
+        
         let offset = self.find_offset(key)?;
 
         match offset {
@@ -152,6 +215,10 @@ impl IDX {
     }
 
     pub fn set_key(&self, key: &str, value: &str) -> Result<IDXKey, Error> {
+        if key.chars().all(|x| x.is_alphanumeric()) {
+            return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
+        }
+
         let offset = self.sst.set(key, value)?;
 
         let mut file = self.get_file()?;

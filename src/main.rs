@@ -23,8 +23,8 @@ async fn main() {
             avl::check_size(shared_state);
         }
     });
-    
-    
+
+
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(

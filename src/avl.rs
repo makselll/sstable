@@ -237,8 +237,9 @@ pub fn check_size(tree: Arc<AVLTreeSingleton>) {
         sleep(Duration::from_secs(5));
         let current_tree = tree.read();
         let megabytes =  calculate_size(&current_tree.unwrap().root) as f64 / 1_048_576_f64;
+        // let megabytes = calculate_size(&current_tree.unwrap().root) as f64;
         println!("AVL Tree Size > {megabytes:.2} MB");
-        if megabytes > 1f64 {
+        if megabytes > 20f64 {
             println!("AVL Tree Size has reached the limit, lets save it to the disk");
             
             let mut tree = tree.write().unwrap();
@@ -247,7 +248,7 @@ pub fn check_size(tree: Arc<AVLTreeSingleton>) {
             
             tree.clear();
             dbg!(&tree);
-            
+
         }
     }
 }
