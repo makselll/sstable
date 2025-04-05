@@ -15,11 +15,11 @@ fn generate_random_string(length: usize) -> String {
 fn avl_set_benchmark(c: &mut Criterion) {
     let mut tree = AVLTree::new();
     let mut group = c.benchmark_group("AVL Tree Operations");
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(100_000));
     
     group.bench_function("set ops/sec", |b| {
         b.iter(|| {
-            for _ in 0..1000 {
+            for _ in 0..100_000 {
                 let key = generate_random_string(6);
                 let value = generate_random_string(6);
                 tree.set(&key, &value);
@@ -33,18 +33,18 @@ fn avl_get_benchmark(c: &mut Criterion) {
     let mut tree = AVLTree::new();
     
     // Pre-fill the tree with random strings
-    for _ in 0..1000 {
+    for _ in 0..100_000 {
         let key = generate_random_string(6);
         let value = generate_random_string(6);
         tree.set(&key, &value);
     }
     
     let mut group = c.benchmark_group("AVL Tree Operations");
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(100_000));
     
     group.bench_function("get ops/sec", |b| {
         b.iter(|| {
-            for _ in 0..1000 {
+            for _ in 0..100_000 {
                 let key = generate_random_string(6);
                 tree.get(&key);
             }
@@ -57,7 +57,7 @@ fn avl_unset_benchmark(c: &mut Criterion) {
     let mut tree = AVLTree::new();
     
     // Pre-fill the tree with random strings
-    for _ in 0..1000 {
+    for _ in 0..100_000 {
         let key = generate_random_string(6);
         let value = generate_random_string(6);
 
@@ -65,11 +65,11 @@ fn avl_unset_benchmark(c: &mut Criterion) {
     }
     
     let mut group = c.benchmark_group("AVL Tree Operations");
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(100_000));
     
     group.bench_function("unset ops/sec", |b| {
         b.iter(|| {
-            for _ in 0..1000 {
+            for _ in 0..100_000 {
                 let key = generate_random_string(6);
                 tree.unset(&key);
             }
