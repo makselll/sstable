@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Error, Seek, SeekFrom, Read, Write, ErrorKind};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use crate::idx::IDX;
 
 pub struct SST {
@@ -11,8 +11,8 @@ impl SST {
     const KEY_LEN: usize = IDX::KEY_LEN;
     const VALUE_LEN: usize = 4;
     
-    pub fn new(path: &Path) -> SST {
-        SST { path: path.to_path_buf() }
+    pub fn new(path: PathBuf) -> SST {
+        SST { path }
     }
 
     fn get_file(&self) -> Result<File, Error> {

@@ -7,8 +7,8 @@ class MyUser(HttpUser):
         self.client.post(
             "/set",
             json={
-                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=6)),
-                 "value": ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=10)),
+                 "value": ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
                  },
             headers={"Content-Type": "application/json"}
         )
@@ -18,7 +18,7 @@ class MyUser(HttpUser):
         self.client.post(
             "/get",
             json={
-                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=6)),
+                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=10)),
                  },
             headers={"Content-Type": "application/json"}
         )
@@ -28,7 +28,7 @@ class MyUser(HttpUser):
         self.client.delete(
             "/delete",
             json={
-                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=6)),
+                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=10)),
                  },
             headers={"Content-Type": "application/json"}
         )

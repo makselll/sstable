@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::thread;
 use axum::{
     routing::{post, delete},
     Router,
@@ -7,10 +8,23 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod avl;
+mod idx;
 mod handlers;
+mod sst;
 
 #[tokio::main()]
 async fn main() {
+    // Track AVL size thread
+    let shared_state = Arc::new(avl::AVLTreeSingleton::new());
+
+    thread::spawn({
+        let shared_state = Arc::clone(&shared_state);
+        move || {
+            avl::check_size(shared_state);
+        }
+    });
+    
+    
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -20,7 +34,6 @@ async fn main() {
         .init();
 
     // Create shared state
-    let shared_state = Arc::new(avl::AVLTreeSingleton::new());
 
     // Build our application with a route
     let app = Router::new()

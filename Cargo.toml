@@ -1,10 +1,10 @@
 [package]
-name = "avl_tree"
+name = "sstable"
 version = "0.1.0"
 edition = "2021"
 
 [[bench]]
-name = "avl_bench"
+name = "sstable"
 harness = false
 
 [dev-dependencies]

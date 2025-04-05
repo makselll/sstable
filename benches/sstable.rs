@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use avl_tree::avl::AVLTree;
+use sstable::avl::AVLTree;
 use rand::{thread_rng, Rng};
 use std::iter;
 

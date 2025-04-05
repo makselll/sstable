@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::fs::{File, OpenOptions};
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+use crate::avl::{AVLNode, AVLTree};
 use crate::sst;
 
 pub struct IDX {
@@ -27,10 +29,36 @@ pub struct IDXValue {
 impl IDX {
     pub const KEY_LEN: usize = 1;
 
-    pub fn new(path: &Path) -> IDX {
-        let sst = sst::SST::new(Path::new("data.sst"));
-        IDX{path: path.to_path_buf(), sst}
+    pub fn new() -> IDX {
+        let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+        
+        let sst_path = format!("{}.sst", time_now);
+        let idx_path = format!("{}.idx", time_now);
+        
+        let sst = sst::SST::new(Path::new(&sst_path).to_path_buf());
+        IDX{path: Path::new(&idx_path).to_path_buf(), sst}
     }
+    
+    pub fn fill_from_avl(&self, tree: &AVLTree) -> Result<(), Error> {
+        self.insert_avl_node(tree.root.as_ref().unwrap())?;
+        Ok(())
+    }
+    
+    fn insert_avl_node(&self, node: &AVLNode) -> Result<(), Error> {
+        self.set_key(node.key.as_str(), node.value.as_str())?;
+        
+        if let Some(left) = &node.left {
+            self.insert_avl_node(left)?;
+        }
+    
+        if let Some(right) = &node.right {
+            self.insert_avl_node(right)?;
+        }
+        
+        Ok(())
+    }
+
+
 
     fn get_key_size_from_byte_file(&self, file: &mut File) -> Result<u8, Error> {
         /* Extract key size */

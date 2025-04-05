@@ -1,5 +1,4 @@
 use std::env;
-use std::path::Path;
 use crate::idx;
 
 
@@ -21,7 +20,7 @@ fn cli() {
         panic!("Invalid arguments! Use get 'key'");
     }
 
-    let idx = idx::IDX::new(&Path::new("map.idx"));
+    let idx = idx::IDX::new();
 
 
     if args[2].len() as u8 > u8::MAX || !args[2].chars().all(|x| x.is_alphabetic()) {

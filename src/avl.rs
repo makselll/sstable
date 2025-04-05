@@ -1,5 +1,9 @@
 use std::cmp::Ordering;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
+use std::thread::sleep;
+use std::time::Duration;
+use std::mem::size_of;
+use crate::idx::IDX;
 
 #[derive(Debug)]
 pub struct AVLNode {
@@ -35,6 +39,10 @@ pub struct AVLTree {
 impl AVLTree {
     pub fn new() -> AVLTree {
         AVLTree { root: None }
+    }
+
+    pub fn clear(&mut self) {
+        self.root = None;
     }
 
     pub fn get(&self, key: &str) -> Option<&AVLNode> {
@@ -208,5 +216,38 @@ impl AVLTreeSingleton {
     
     pub fn get_instance(&self) -> &RwLock<AVLTree> {
         &self.instance
+    }
+}
+
+fn calculate_size(node: &Option<Box<AVLNode>>) -> usize {
+    match node {
+        Some(n) => {
+            let node_size = size_of::<AVLNode>()
+                + n.key.len()
+                + n.value.len();
+            node_size + calculate_size(&n.left) + calculate_size(&n.right)
+        }
+        None => 0,
+    }
+}
+
+pub fn check_size(tree: Arc<AVLTreeSingleton>) {
+    let tree = tree.get_instance();
+    loop {
+        sleep(Duration::from_secs(5));
+        let current_tree = tree.read();
+        let megabytes =  calculate_size(&current_tree.unwrap().root) as f64 / 1_048_576_f64;
+        println!("AVL Tree Size > {megabytes:.2} MB");
+        if megabytes > 1f64 {
+            println!("AVL Tree Size has reached the limit, lets save it to the disk");
+            
+            let mut tree = tree.write().unwrap();
+            let idx = IDX::new();
+            idx.fill_from_avl(&tree).unwrap();
+            
+            tree.clear();
+            dbg!(&tree);
+            
+        }
     }
 }
