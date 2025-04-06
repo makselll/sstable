@@ -20,7 +20,7 @@ fn cli() {
         panic!("Invalid arguments! Use get 'key'");
     }
 
-    let idx = idx::IDX::new();
+    let idx = idx::IDX::new(None);
 
 
     if args[2].len() as u8 > u8::MAX || !args[2].chars().all(|x| x.is_alphabetic()) {

@@ -1,8 +1,10 @@
 use std::cmp::Ordering;
+use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
 use crate::avl::{AVLNode, AVLTree};
 use crate::sst;
 
@@ -23,6 +25,7 @@ pub struct IDXKey {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct IDXValue {
+    pub key: String,
     pub value: String,
 }
 
@@ -33,17 +36,14 @@ impl IDX {
         path.file_stem()
             .and_then(|stem| stem.to_str())
             .and_then(|name| name.parse::<u64>().ok())
-            .unwrap_or(0)  // Если не удается извлечь timestamp, возвращаем 0
+            .unwrap_or(0)
     }
 
     pub fn search_key_in_all_files(key: &str) -> Option<IDXValue> {
         let mut idx_files = std::fs::read_dir(".")
             .unwrap()
-            // Фильтруем все, что не удалось прочитать
             .filter_map(|res| res.ok())
-            // Преобразуем элементы в пути
             .map(|dir_entry| dir_entry.path())
-            // Оставляем только файлы с расширением .idx
             .filter_map(|path| {
                 if path.extension().map_or(false, |ext| ext == "idx") {
                     Some(path)
@@ -51,14 +51,12 @@ impl IDX {
                     None
                 }
             })
-            // Преобразуем в вектор для сортировки
             .collect::<Vec<_>>();
-
-        // Сортируем файлы по времени, извлекая unix timestamp из имени файла
+        
         idx_files.sort_by(|a, b| {
             let a_timestamp = Self::get_timestamp_from_filename(a);
             let b_timestamp = Self::get_timestamp_from_filename(b);
-            b_timestamp.cmp(&a_timestamp)  // Чтобы сортировать от самого нового
+            b_timestamp.cmp(&a_timestamp)
         });
 
 
@@ -68,7 +66,6 @@ impl IDX {
             let idx = Self::from(file).unwrap();
             value = match idx.get_value(&key) {
                 Ok(value) => {
-                    dbg!(&value);
                     Some(value)
                 },
                 Err(_) => continue,
@@ -78,14 +75,21 @@ impl IDX {
         value
     }
 
-    pub fn new() -> IDX {
-        let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    pub fn new(mut file_name: Option<String>) -> IDX {
+        if file_name.is_none() {
+            file_name = Some(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs().to_string());
+        } 
         
-        let sst_path = format!("{}.sst", time_now);
-        let idx_path = format!("{}.idx", time_now);
+        let sst_path = format!("{}.sst", file_name.clone().unwrap());
+        let idx_path = format!("{}.idx", file_name.unwrap());
         
         let sst = sst::SST::new(Path::new(&sst_path).to_path_buf());
         IDX{path: Path::new(&idx_path).to_path_buf(), sst}
+    }
+    
+    pub fn clear(&mut self) -> Result<(), Error> {
+        fs::remove_file(&self.path)?;
+        fs::remove_file(&self.sst.path)
     }
 
     pub fn from(idx_file: PathBuf) -> Result<IDX, Error> {
@@ -110,8 +114,7 @@ impl IDX {
         }
 
         self.set_key(node.key.as_str(), node.value.as_str())?;
-        dbg!(node.key.as_str());
-
+        
         if let Some(right) = &node.right {
             self.insert_avl_node(right)?;
         }
@@ -131,6 +134,12 @@ impl IDX {
         let mut key_buf = vec![0u8; key_size];
         file.read_exact(&mut key_buf)?;
         Ok(String::from_utf8_lossy(&key_buf).to_string())
+    }
+
+    pub fn iter(&self) -> Result<IDXIter, Error> {
+        let mut file = self.get_file(false)?;
+        let position = file.seek(SeekFrom::Start(0))?;
+        Ok(IDXIter { idx: self, position })
     }
 
     fn find_mid(&self, file: &mut File, mut mid: u64) -> Result<u64, Error> {
@@ -159,15 +168,13 @@ impl IDX {
         Ok(0)
     }
 
-    fn get_file(&self) -> Result<File, Error> {
-        // Попытка открыть файл для чтения и записи
-        return OpenOptions::new().create(true).read(true).write(true).open(&self.path);
-
+    fn get_file(&self, create: bool) -> Result<File, Error> {
+        OpenOptions::new().create(create).read(true).write(true).open(&self.path)
     }
 
     fn find_offset(&self, key: &str) ->  Result<Option<u64>, Error> {
         /* Find what offset we should get to find a key in sst */
-        let mut file = self.get_file()?;
+        let mut file = self.get_file(false)?;
 
         let mut left = 0;
         let mut right = file.metadata()?.len();
@@ -202,26 +209,26 @@ impl IDX {
     }
 
     pub fn get_value(&self, key: &str) -> Result<IDXValue, Error> {
-        if key.chars().all(|x| x.is_alphanumeric()) {
+        if key.len() >= 11 || !key.chars().all(|x| x.is_alphanumeric()) {
             return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
         }
         
         let offset = self.find_offset(key)?;
 
         match offset {
-            Some(offset) => {Ok(IDXValue{value: self.sst.get(&key, offset)?})},
+            Some(offset) => {Ok(IDXValue{key: key.to_string(), value: self.sst.get(&key, offset)?})},
             None => {Err(Error::new(ErrorKind::NotFound, "Key not found"))}
         }
     }
 
     pub fn set_key(&self, key: &str, value: &str) -> Result<IDXKey, Error> {
-        if key.chars().all(|x| x.is_alphanumeric()) {
+        if key.len() >= 11 || !key.chars().all(|x| x.is_alphanumeric()) {
             return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
         }
 
         let offset = self.sst.set(key, value)?;
 
-        let mut file = self.get_file()?;
+        let mut file = self.get_file(true)?;
         file.seek(SeekFrom::End(0))?;
 
         file.write_all(&(key.len() as u8).to_le_bytes())?;
@@ -230,5 +237,127 @@ impl IDX {
 
         Ok(IDXKey{key_len: key.len() as u8, key: key.to_string(), offset})
 
+    }
+    
+    pub fn compaction() {
+        loop {
+            sleep(Duration::from_secs(5));
+            println!("Checking IDX files to compaction");
+            
+            let mut idx_files = std::fs::read_dir(".")
+                .unwrap()
+                .filter_map(|res| res.ok())
+                .map(|dir_entry| dir_entry.path())
+                .filter_map(|path| {
+                    if path.extension().map_or(false, |ext| ext == "idx") {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+                .filter_map(|path| {
+                    if path.metadata().map_or(false, |m| m.len() < 5 * 1024 * 1024) {  // 20 MB
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            idx_files.sort_by(|a, b| {
+                let a_timestamp = Self::get_timestamp_from_filename(a);
+                let b_timestamp = Self::get_timestamp_from_filename(b);
+                b_timestamp.cmp(&a_timestamp)
+            });
+            
+            while idx_files.len() > 2 {
+                println!("Start compaction");
+                dbg!(&idx_files);
+                
+                let a_idx_path = idx_files.pop().unwrap();
+                let b_idx_path = idx_files.pop().unwrap();
+                
+                let mut tree = AVLTree::new();
+                let mut a_idx = IDX::from(a_idx_path.clone()).unwrap();
+                let mut b_idx = IDX::from(b_idx_path).unwrap();
+                
+                println!("Size of files to compact is {} MB", a_idx.sst.get_size().unwrap() + b_idx.sst.get_size().unwrap());
+            
+                tree.feel_from_idx(&a_idx);
+                tree.feel_from_idx(&b_idx);
+
+
+                let file_stem = a_idx_path.file_stem().unwrap().to_str().unwrap().to_string();
+                let mut new_idx_file_name = file_stem.split("_");
+                let mut new_idx_file_name_str = new_idx_file_name.clone().collect::<Vec<&str>>();
+
+                let new_idx_file_name = if new_idx_file_name_str.len() == 1 {
+                    // Если в имени файла только один элемент после разделения
+                    Some(format!("{}_{}", new_idx_file_name_str[0].to_string(), 1))
+                } else {
+                    // Если есть несколько элементов, увеличиваем индекс
+                    let base_name = new_idx_file_name_str[0];  // Первая часть до _
+                    let index = new_idx_file_name_str[1].parse::<u32>().unwrap_or(0) + 1;
+                    Some(format!("{}_{}", base_name, index))
+                };
+                
+                let new_idx = IDX::new(new_idx_file_name);
+                new_idx.fill_from_avl(&tree).unwrap();
+
+                a_idx.clear().unwrap();
+                println!("First idx file was removed > {}", {a_idx.path.to_string_lossy()});
+                b_idx.clear().unwrap();
+                println!("Second idx file was removed > {}", {b_idx.path.to_string_lossy()});
+                
+                println!("Compaction complete, new file > {}, with size > {}", new_idx.path.to_string_lossy(),  new_idx.sst.get_size().unwrap());
+                
+                dbg!(&idx_files);
+            }
+        }
+    }
+}
+
+pub struct IDXIter<'a> {
+    idx: &'a IDX,
+    position: u64,
+}
+
+
+impl<'a> Iterator for IDXIter<'a> {
+    
+    type Item = IDXValue;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut key_len_buf = [0u8; 1];
+        let mut file = self.idx.get_file(false).unwrap();
+        if file.seek(SeekFrom::Start(self.position)).is_err() {
+            return None;
+        }
+
+        if file.read_exact(&mut key_len_buf).is_err() {
+            return None;
+        }
+
+        let key_len = key_len_buf[0] as usize;
+        let mut key_buf = vec![0u8; key_len];
+
+        if file.read_exact(&mut key_buf).is_err() {
+            return None;
+        }
+
+        let mut offset_buf = [0u8; 8];
+        if file.read_exact(&mut offset_buf).is_err() {
+            return None;
+        }
+        
+        let key = String::from_utf8_lossy(&key_buf).to_string();
+        let offset = u64::from_le_bytes(offset_buf);
+
+        self.position += 1 + key_len as u64 + 8;
+
+        Some(IDXValue {
+            key: String::from_utf8_lossy(&key_buf).to_string(),
+            value: self.idx.sst.get(key.as_str(), offset).unwrap()
+        })
     }
 }

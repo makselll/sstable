@@ -5,6 +5,10 @@ use std::time::Duration;
 use std::mem::size_of;
 use crate::idx::IDX;
 
+
+const SIZE_TO_MOVE_AVL_TO_DISK: f64 = 1f64;
+
+
 #[derive(Debug)]
 pub struct AVLNode {
     pub left: Option<Box<AVLNode>>,
@@ -64,6 +68,15 @@ impl AVLTree {
 
         None
     }
+
+    pub fn feel_from_idx(&mut self, idx: &IDX) -> &AVLTree {
+        let mut iter = idx.iter().unwrap();
+        while let Some(i) = iter.next() {
+            self.set(i.key.as_str(), i.value.as_str())
+        }
+        self
+    }
+    
 
     pub fn unset(&mut self, key: &str) {
         self.root = Self::remove(self.root.take(), key);
@@ -237,18 +250,19 @@ pub fn check_size(tree: Arc<AVLTreeSingleton>) {
         sleep(Duration::from_secs(5));
         let current_tree = tree.read();
         let megabytes =  calculate_size(&current_tree.unwrap().root) as f64 / 1_048_576_f64;
-        // let megabytes = calculate_size(&current_tree.unwrap().root) as f64;
         println!("AVL Tree Size > {megabytes:.2} MB");
-        if megabytes > 20f64 {
+        if megabytes > SIZE_TO_MOVE_AVL_TO_DISK {
             println!("AVL Tree Size has reached the limit, lets save it to the disk");
             
             let mut tree = tree.write().unwrap();
-            let idx = IDX::new();
-            idx.fill_from_avl(&tree).unwrap();
+            let idx = IDX::new(None);
+            match idx.fill_from_avl(&tree) {
+                Ok(_) => {}
+                Err(e) => println!("Failed to fill AVL tree: {}", e),
+            };
             
             tree.clear();
-            dbg!(&tree);
-
+            println!("AVL Tree was saved to the disk");
         }
     }
 }

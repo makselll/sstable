@@ -6,6 +6,7 @@ use axum::{
 };
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use crate::idx::IDX;
 
 mod avl;
 mod idx;
@@ -21,6 +22,12 @@ async fn main() {
         let shared_state = Arc::clone(&shared_state);
         move || {
             avl::check_size(shared_state);
+        }
+    });
+
+    thread::spawn({
+        move || {
+            IDX::compaction();
         }
     });
 

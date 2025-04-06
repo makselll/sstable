@@ -7,7 +7,7 @@ class MyUser(HttpUser):
         self.client.post(
             "/set",
             json={
-                "key": ''.join(random.choices(string.ascii_uppercase + string.digits, k=10)),
+                "key": ''.join(random.choices("qwerty", k=10)),
                  "value": ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
                  },
             headers={"Content-Type": "application/json"}

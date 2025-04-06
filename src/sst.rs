@@ -4,7 +4,7 @@ use std::path::{PathBuf};
 use crate::idx::IDX;
 
 pub struct SST {
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 impl SST {
@@ -15,8 +15,14 @@ impl SST {
         SST { path }
     }
 
-    fn get_file(&self) -> Result<File, Error> {
-        OpenOptions::new().create(true).read(true).write(true).open(&self.path)
+    fn get_file(&self, create: bool) -> Result<File, Error> {
+        OpenOptions::new().create(create).read(true).write(true).open(&self.path)
+    }
+
+    pub fn get_size(&self) -> Result<f64, Error> {
+        /* In MB */
+        let size_in_bytes = self.get_file(false)?.metadata()?.len();
+        Ok((size_in_bytes as f64 / 1024.0 / 1024.0))
     }
 
     fn get_key_size_from_byte_file(&self, file: &mut File) -> Result<u8, Error> {
@@ -41,7 +47,7 @@ impl SST {
     }
     
     pub fn get(&self, key: &str, offset: u64) -> Result<String, Error> {
-        let mut file = self.get_file()?;
+        let mut file = self.get_file(false)?;
         file.seek(SeekFrom::Start(offset))?;
         
         let key_size = self.get_key_size_from_byte_file(&mut file)?;
@@ -55,7 +61,7 @@ impl SST {
     }
 
     pub fn set(&self, key: &str, value: &str) -> Result<u64, Error> {
-        let mut file = self.get_file()?;
+        let mut file = self.get_file(true)?;
 
         file.seek(SeekFrom::End(0))?;
         let offset = file.stream_position()?;
