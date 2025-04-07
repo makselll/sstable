@@ -153,13 +153,13 @@ impl AVLTree {
         }
     }
 
-    fn get_height(node: Option<&Box<AVLNode>>) -> i32 {
+    fn get_height(node: Option<&AVLNode>) -> i32 {
         node.map_or(0, |n| n.height)
     }
 
-    fn get_balance(node: Option<&Box<AVLNode>>) -> i32 {
+    fn get_balance(node: Option<&AVLNode>) -> i32 {
         node.map_or(0, |n| {
-            Self::get_height(n.left.as_ref()) - Self::get_height(n.right.as_ref())
+            Self::get_height(n.left.as_deref()) - Self::get_height(n.right.as_deref())
         })
     }
 
@@ -189,7 +189,7 @@ impl AVLTree {
 
     fn update_height(node: &mut Box<AVLNode>) {
         node.height =
-            1 + Self::get_height(node.left.as_ref()).max(Self::get_height(node.right.as_ref()));
+            1 + Self::get_height(node.left.as_deref()).max(Self::get_height(node.right.as_deref()));
     }
 
     fn balance(mut node: Box<AVLNode>) -> Box<AVLNode> {
@@ -197,23 +197,23 @@ impl AVLTree {
         let balance = Self::get_balance(Some(&node));
 
         // Left Left
-        if balance > 1 && Self::get_balance(node.left.as_ref()) >= 0 {
+        if balance > 1 && Self::get_balance(node.left.as_deref()) >= 0 {
             return Self::right_rotate(node);
         }
 
         // Left Right
-        if balance > 1 && Self::get_balance(node.left.as_ref()) < 0 {
+        if balance > 1 && Self::get_balance(node.left.as_deref()) < 0 {
             node.left = Some(Self::left_rotate(node.left.unwrap()));
             return Self::right_rotate(node);
         }
 
         // Right Right
-        if balance < -1 && Self::get_balance(node.right.as_ref()) <= 0 {
+        if balance < -1 && Self::get_balance(node.right.as_deref()) <= 0 {
             return Self::left_rotate(node);
         }
 
         // Right Left
-        if balance < -1 && Self::get_balance(node.right.as_ref()) > 0 {
+        if balance < -1 && Self::get_balance(node.right.as_deref()) > 0 {
             node.right = Some(Self::right_rotate(node.right.unwrap()));
             return Self::left_rotate(node);
         }
