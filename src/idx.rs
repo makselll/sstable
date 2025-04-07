@@ -241,7 +241,7 @@ impl IDX {
     
     pub fn compaction() {
         loop {
-            sleep(Duration::from_secs(5));
+            sleep(Duration::from_secs(1));
             println!("Checking IDX files to compaction");
             
             let mut idx_files = std::fs::read_dir(".")

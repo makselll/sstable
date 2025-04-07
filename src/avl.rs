@@ -6,7 +6,7 @@ use std::mem::size_of;
 use crate::idx::IDX;
 
 
-const SIZE_TO_MOVE_AVL_TO_DISK: f64 = 1f64;
+const SIZE_TO_MOVE_AVL_TO_DISK: f64 = 10f64;
 
 
 #[derive(Debug)]
