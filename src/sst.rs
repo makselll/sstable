@@ -22,7 +22,7 @@ impl SST {
     pub fn get_size(&self) -> Result<f64, Error> {
         /* In MB */
         let size_in_bytes = self.get_file(false)?.metadata()?.len();
-        Ok((size_in_bytes as f64 / 1024.0 / 1024.0))
+        Ok(size_in_bytes as f64 / 1024.0 / 1024.0)
     }
 
     fn get_key_size_from_byte_file(&self, file: &mut File) -> Result<u8, Error> {

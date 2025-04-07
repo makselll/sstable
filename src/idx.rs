@@ -288,19 +288,17 @@ impl IDX {
 
 
                 let file_stem = a_idx_path.file_stem().unwrap().to_str().unwrap().to_string();
-                let mut new_idx_file_name = file_stem.split("_");
-                let mut new_idx_file_name_str = new_idx_file_name.clone().collect::<Vec<&str>>();
+                let new_idx_file_name = file_stem.split("_");
+                let new_idx_file_name_str = new_idx_file_name.clone().collect::<Vec<&str>>();
 
                 let new_idx_file_name = if new_idx_file_name_str.len() == 1 {
-                    // Если в имени файла только один элемент после разделения
                     Some(format!("{}_{}", new_idx_file_name_str[0].to_string(), 1))
                 } else {
-                    // Если есть несколько элементов, увеличиваем индекс
-                    let base_name = new_idx_file_name_str[0];  // Первая часть до _
+                    let base_name = new_idx_file_name_str[0];
                     let index = new_idx_file_name_str[1].parse::<u32>().unwrap_or(0) + 1;
                     Some(format!("{}_{}", base_name, index))
                 };
-                
+
                 let new_idx = IDX::new(new_idx_file_name);
                 new_idx.fill_from_avl(&tree).unwrap();
 
@@ -310,7 +308,7 @@ impl IDX {
                 println!("Second idx file was removed > {}", {b_idx.path.to_string_lossy()});
                 
                 println!("Compaction complete, new file > {}, with size > {}", new_idx.path.to_string_lossy(),  new_idx.sst.get_size().unwrap());
-                
+
                 dbg!(&idx_files);
             }
         }
