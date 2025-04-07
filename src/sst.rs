@@ -1,5 +1,5 @@
 use std::fs::{File, OpenOptions};
-use std::io::{Error, Seek, SeekFrom, Read, Write, ErrorKind};
+use std::io::{Error, Seek, SeekFrom, Read, Write};
 use std::path::{PathBuf};
 use crate::idx::IDX;
 
@@ -53,11 +53,11 @@ impl SST {
         let key_size = self.get_key_size_from_byte_file(&mut file)?;
         let found_key = self.get_key_from_byte_file(&mut file, key_size as usize)?;
         if key != found_key {
-            return Err(Error::new(ErrorKind::Other, "key not found"));
+            return Err(Error::other("key not found"));
         }
         
         let value_len = self.get_value_size_from_byte_file(&mut file)?;
-        Ok(self.get_key_from_byte_file(&mut file, value_len as usize)?)
+        self.get_key_from_byte_file(&mut file, value_len as usize)
     }
 
     pub fn set(&self, key: &str, value: &str) -> Result<u64, Error> {

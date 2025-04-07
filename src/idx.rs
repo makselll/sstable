@@ -45,7 +45,7 @@ impl IDX {
             .filter_map(|res| res.ok())
             .map(|dir_entry| dir_entry.path())
             .filter_map(|path| {
-                if path.extension().map_or(false, |ext| ext == "idx") {
+                if path.extension().is_some_and(|ext| ext == "idx") {
                     Some(path)
                 } else {
                     None
@@ -64,7 +64,7 @@ impl IDX {
 
         for file in idx_files {
             let idx = Self::from(file).unwrap();
-            value = match idx.get_value(&key) {
+            value = match idx.get_value(key) {
                 Ok(value) => {
                     Some(value)
                 },
@@ -95,7 +95,7 @@ impl IDX {
     pub fn from(idx_file: PathBuf) -> Result<IDX, Error> {
         let file_name = idx_file.file_stem();
         if file_name.is_none() {
-            return Err(Error::new(ErrorKind::Other, "No Filename"));
+            return Err(Error::other("No Filename"));
         }
 
         let sst_file = Path::new(&format!("{}.sst", file_name.unwrap().to_str().unwrap())).to_path_buf();
@@ -151,7 +151,7 @@ impl IDX {
             let key_size = self.get_key_size_from_byte_file(file)?;
 
             // The key should be less than 256 and more than 0
-            if key_size >= 1 && key_size <= u8::MAX {
+            if (1..=u8::MAX).contains(&key_size) {
                 let key = match self.get_key_from_byte_file(file, key_size as usize) {
                     Ok(key) => {key}
                     Err(_) => {mid -= 1; continue }
@@ -210,20 +210,20 @@ impl IDX {
 
     pub fn get_value(&self, key: &str) -> Result<IDXValue, Error> {
         if key.len() >= 11 || !key.chars().all(|x| x.is_alphanumeric()) {
-            return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
+            return Err(Error::other("Key must be alphanumeric and less than 11 chars"))
         }
         
         let offset = self.find_offset(key)?;
 
         match offset {
-            Some(offset) => {Ok(IDXValue{key: key.to_string(), value: self.sst.get(&key, offset)?})},
+            Some(offset) => {Ok(IDXValue{key: key.to_string(), value: self.sst.get(key, offset)?})},
             None => {Err(Error::new(ErrorKind::NotFound, "Key not found"))}
         }
     }
 
     pub fn set_key(&self, key: &str, value: &str) -> Result<IDXKey, Error> {
         if key.len() >= 11 || !key.chars().all(|x| x.is_alphanumeric()) {
-            return Err(Error::new(ErrorKind::Other, "Key must be alphanumeric and less than 11 chars"))
+            return Err(Error::other("Key must be alphanumeric and less than 11 chars"))
         }
 
         let offset = self.sst.set(key, value)?;
@@ -249,14 +249,14 @@ impl IDX {
                 .filter_map(|res| res.ok())
                 .map(|dir_entry| dir_entry.path())
                 .filter_map(|path| {
-                    if path.extension().map_or(false, |ext| ext == "idx") {
+                    if path.extension().is_some_and(|ext| ext == "idx") {
                         Some(path)
                     } else {
                         None
                     }
                 })
                 .filter_map(|path| {
-                    if path.metadata().map_or(false, |m| m.len() < 5 * 1024 * 1024) {  // 20 MB
+                    if path.metadata().is_ok_and(|m| m.len() < 5 * 1024 * 1024) {  // 5 MB
                         Some(path)
                     } else {
                         None
@@ -292,7 +292,7 @@ impl IDX {
                 let new_idx_file_name_str = new_idx_file_name.clone().collect::<Vec<&str>>();
 
                 let new_idx_file_name = if new_idx_file_name_str.len() == 1 {
-                    Some(format!("{}_{}", new_idx_file_name_str[0].to_string(), 1))
+                    Some(format!("{}_{}", new_idx_file_name_str[0], 1))
                 } else {
                     let base_name = new_idx_file_name_str[0];
                     let index = new_idx_file_name_str[1].parse::<u32>().unwrap_or(0) + 1;

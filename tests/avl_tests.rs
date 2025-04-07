@@ -1,4 +1,4 @@
-use rust::avl::AVLTree;
+use sstable::avl::AVLTree;
 
 #[test]
 fn valid_tree() {

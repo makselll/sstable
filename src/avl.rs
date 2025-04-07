@@ -40,6 +40,12 @@ pub struct AVLTree {
     pub root: Option<Box<AVLNode>>,
 }
 
+impl Default for AVLTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AVLTree {
     pub fn new() -> AVLTree {
         AVLTree { root: None }
@@ -70,8 +76,8 @@ impl AVLTree {
     }
 
     pub fn feel_from_idx(&mut self, idx: &IDX) -> &AVLTree {
-        let mut iter = idx.iter().unwrap();
-        while let Some(i) = iter.next() {
+        let iter = idx.iter().unwrap();
+        for i in iter {
             self.set(i.key.as_str(), i.value.as_str())
         }
         self
@@ -218,6 +224,12 @@ impl AVLTree {
 
 pub struct AVLTreeSingleton {
     instance: RwLock<AVLTree>,
+}
+
+impl Default for AVLTreeSingleton {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AVLTreeSingleton {

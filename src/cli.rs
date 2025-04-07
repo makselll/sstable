@@ -10,7 +10,7 @@ fn cli() {
     }
 
 
-    if !vec!["set", "get"].contains(&args[1].as_str()) {
+    if !["set", "get"].contains(&args[1].as_str()) {
         panic!("Invalid arguments! Use 'set' or 'get'");
     }
 
